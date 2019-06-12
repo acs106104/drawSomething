@@ -487,9 +487,6 @@ public class ClientGui extends Thread{
 	          read = new Read();
 	          read.start();
 	          
-	          draw = new Draw();
-  	          draw.start();
-	          
   	          jfr.add(ALabel);
   	          jfr.add(Answer);
   	          jfr.add(QLabel);
@@ -548,7 +545,6 @@ public class ClientGui extends Thread{
         jfr.revalidate();
         jfr.repaint();
         read.interrupt();
-        draw.interrupt();
         jtextListUsers.setText(null);
         jtextFilDiscu.setBackground(Color.LIGHT_GRAY);
         jtextListUsers.setBackground(Color.LIGHT_GRAY);
@@ -674,16 +670,30 @@ public class ClientGui extends Thread{
 	            	Answer.setText(answer);
 	            	Question.setText(guess);
 	            }
+	            else if(message.substring(0,9).equals("$gameOver")){
+	            	System.out.println(message.substring(10));
+	            	StringTokenizer st = new StringTokenizer(message.substring(9),",");
+	        		int score = Integer.parseInt(st.nextToken());
+	        		System.out.println("here"+score);
+	        		String numberOne = st.nextToken();
+	        		
+	        		JOptionPane.showMessageDialog(null,"遊戲結束!\n" + "最高分為: "+score+"分\n"+"No.1: "+numberOne);
+	        		
+	            }
              }
+            //設定目前的值
             else if(message.charAt(0) == '&') {
-  	          timeCheck=true;//開始計時
-  	          System.out.println("start");
+  	         // System.out.println("start");
+  	        //System.out.println(message);
+  	          int count = Integer.parseInt(message.substring(1));
+  	          
+  	      		progressbar.setValue(count);
             }
+            /*
             else if(message.charAt(0) =='/') {
-              timeStopCheck=true;//停止計時
               progressbar.setValue(0);
               System.out.println("stop");
-            }
+            }*/
             else{
               appendToPane(jtextFilDiscu, message);
             }
@@ -769,7 +779,8 @@ public class ClientGui extends Thread{
   
   //draw
   // read new incoming messages
-  class Draw extends Thread {
+  
+  /*class Draw extends Thread {
     public void run() {
       //String message;
       while(!Thread.currentThread().isInterrupted()){
@@ -781,14 +792,14 @@ public class ClientGui extends Thread{
     	  }
       }//end of while
     }//end of run
-  }
   
-  public void timeStart() {
-	 timer.start();
-	 //System.out.println("Start倒數！");
-  }
-  public void timeStop() {
-	  timer.stop();
-	  //System.out.println("停止倒數！");
-  }
+	  public void timeStart() {
+		 timer.start();
+		 //System.out.println("Start倒數！");
+	  }
+	  public void timeStop() {
+		  timer.stop();
+		  //System.out.println("停止倒數！");
+	  }
+  }*/
 }
