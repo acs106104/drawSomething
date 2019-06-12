@@ -9,8 +9,13 @@ import java.util.List;
 import java.util.Scanner;
 import java.util.StringTokenizer;
 import java.util.regex.Pattern;
+
+import javax.swing.Timer;
+
 import java.util.regex.Matcher;
 import java.awt.Color;
+import java.awt.event.ActionEvent;
+import java.awt.event.ActionListener;
 
 public class Server {
 
@@ -25,6 +30,9 @@ public class Server {
   public String guess;
   private MyDataBase db;
   public int point = 10;
+  public Timer timer;
+  public int highestpoint=0;
+  public User numberOne;
 
   public static void main(String[] args) throws IOException {
     new Server(12345).run();//啟動伺服器
@@ -34,6 +42,34 @@ public class Server {
     this.port = port;
     this.clients = new ArrayList<User>();//允許多個client 連接到同一個port
     db = new MyDataBase();
+    
+    timer = new Timer(100, new ActionListener() {
+        private int counter = 100;
+        @Override
+        public void actionPerformed(ActionEvent ae) {
+        	//System.out.println("hihi!");
+        	timeCount(counter);
+        	//System.out.println(counter);
+        	--counter;
+      
+            if (counter < 0) {
+             	 changeDraw();
+             	setTurns(getTurns() + 1);
+                //timer.stop();//時間停止
+                counter=100;
+            }
+            if(highestpoint>=20) {
+      	  	  StopGame();
+      	  	  timer.stop();
+      	  	  /*if(gamecheck()) {
+      	  		changeDraw();
+      	  		turns++;
+      	  		timer.start();
+      	  	  }
+      	  	  else timer.stop();*/
+            }
+        }
+    });
   }
 
   public void run() throws IOException {
@@ -73,33 +109,66 @@ public class Server {
       
       if(clients.size() >= 2) {
     	  System.out.println("There are >2 clients! You can start your game!");
-    	  startCheck=true;//確定有兩人以上
+    	  startCheck=true;//確定有兩人以上 準備開始遊戲
       }
       else if(clients.size() < 2) {
+    	  reset();
     	  startCheck=false;
     	  System.out.println("There are <2 clients! You can't start your game!");
+    	  timeCount(0);
       }
       if(turns == 0 && startCheck==true) {
+    	  reset();
     	  changeDraw();
+    	  turns++;
+    	  timer.start();
       }
-      else if(turns > 0 && startCheck==false) {
+      else if(turns >= 0 && startCheck==false) {
     	  turns=0;//重新從0計算
-    	  timeStopoUser();//停止計時
+    	  timer.stop();//停止計時
       }
+     
     }
   }
-  //時間開始
-  public void timeStartoUser() {
+  
+  public void HighestScorePerson() {
 	for (User client : this.clients) {
-		client.getOutStream().println("&");
-	}	
+		if(client.getScore()>highestpoint) {
+			highestpoint=client.getScore();//最高分
+			numberOne=client;//最高分的人
+		}
+	}
+	System.out.println("H!");
+	System.out.println(highestpoint);
+  }
+  public boolean gamecheck() {
+	  if(clients.size() >= 2) {
+    	  return true;
+	  }
+	  else return false;
   }
   
-  public void timeStopoUser() {
-	for (User client : this.clients) {
-		client.getOutStream().println("/");
-	}	
+  public void reset() {
+	  turns=0;
+	  highestpoint=0;
+	  numberOne=null;
   }
+  public void StopGame() {
+		for (User client : this.clients) {
+			client.getOutStream().println("$gameOver"+String.valueOf(highestpoint)+","+numberOne.getNickname());
+		}
+		System.out.println("done!");
+		reset();
+  }
+  
+  //倒數計時
+  public void timeCount(int t) {
+		for (User client : this.clients) {
+			client.getOutStream().println("&"+String.valueOf(t));
+			//System.out.println("&"+String.valueOf(t));
+		}
+  }
+  
   public void ansUnloctoUser() {
 	for (User client : this.clients) {
 		client.anslock=false;
@@ -111,7 +180,6 @@ public class Server {
     this.clients.remove(user);
     if(clients.size()<2) {
       turns=0;//重新從0計算
-   	  timeStopoUser();//停止計時
    	  System.out.println("Remove and then stop!");
     }
   }
@@ -147,8 +215,10 @@ public class Server {
     }
   }
   
-  /*public void changeDraw() {
-	  
+  public void changeDraw() {
+	HighestScorePerson();//分數小計
+	point=10;
+	ansUnloctoUser();
 	int n = clients.size();//當前連線人數
 	int which=0;
 	
@@ -182,37 +252,17 @@ public class Server {
 	    clients.get(which).getOutStream().println("$draw");//傳送指令給他接收！
 	}//end of else
 	ChangeGuess();//其餘人傳“=guess”
+	clients.get(which).anslock=true;//畫畫的人猜對沒有用
 	QnA();
-	timeStartoUser();
-  }*/
+	//timeStartoUser();
+  }
   
-  public void changeDraw() {
-	  	point=10;
-	  	ansUnloctoUser();
-		int n = clients.size();//當前連線人數
-		//int which=0;
-		whichDraw++;
-		
-		if(getTurns() == 0) {
-			Painter = clients.get(0).getNickname();
-			System.out.println(Painter+": I am the first person to draw!");
-			clients.get(0).getOutStream().println("$draw");//傳送指令給他接收！
-			whichDraw=0;
-		}else {			
-			if(whichDraw>=n) {
-		    	whichDraw=0;//從頭開始第一個人畫畫
-		    }
-		}
-		ChangeGuess();//其餘人傳“=guess”
-		QnA();
-		timeStartoUser();
-	  }
   //其他人為guess
   public void ChangeGuess(){
 	  //System.out.println("whichDraw: "+whichDraw);
 	 for(int i=0;i<clients.size();i++) {
 		if(i==whichDraw) {
-			 clients.get(i).getOutStream().println("$draw");//傳送指令給他接收！
+			 //clients.get(i).getOutStream().println("$draw");//傳送指令給他接收！
 			System.out.println(clients.get(i).getNickname()+": Draw!");
 		}
 		else {
@@ -304,11 +354,12 @@ class UserHandler implements Runnable {
         // update color for all other users
         this.server.broadcastAllUsers();
       }
+      /*
       else if(message.charAt(0) == '|') {
     	server.setTurns(server.getTurns() + 1);
     	server.changeDraw();
         System.out.println("\nchange $\n");
-      }
+      }*/
       else if(message.charAt(0) == '$') {
     	  if(message.length()>=9) {
 		      if(message.substring(0,8).equals("$drawmsg")) {
@@ -336,15 +387,19 @@ class UserHandler implements Runnable {
 		    		server.broadcastAllUsers();
 		    		server.broadcastMessages(user.getNickname()+"答對!  <span style='color:red'>+"+point+"</span>", user);
 		    		user.anslock=true;//表示回答過了 不可以再回答第二次
+		    		server.broadcastMessages(msgA, user);//可以回答 不過沒有用～
 	    		}
+	    		else
+	    			server.broadcastMessages(msgA, user);
     		}
-    		server.broadcastMessages(msgA, user);//可以回答 不過沒有用～
+    		else
+    			server.broadcastMessages(message, user);//可以回答 不過沒有用～
     	}else
     		server.broadcastMessages(message, user);
       }
     }
     // end of Thread
-    server.removeUser(user);
+    this.server.removeUser(user);
     this.server.broadcastAllUsers();
     sc.close();
   }
